@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>RestMind.Ctl</AssemblyName>
+    <RootNamespace>RestMind.Ctl</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RestMind.Core\RestMind.Core.csproj" />
+  </ItemGroup>
+
+</Project>

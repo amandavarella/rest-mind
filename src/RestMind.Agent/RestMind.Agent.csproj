@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <!-- Windows Forms comes along only for NotifyIcon and Screen. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>RestMind.Agent</AssemblyName>
+    <RootNamespace>RestMind.Agent</RootNamespace>
+    <!-- WFAC010 asks for ApplicationHighDpiMode instead of manifest DPI settings, but that
+         applies to a Windows Forms message loop. This is a WPF app that only borrows
+         NotifyIcon, and WPF reads DPI awareness from the manifest at startup. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RestMind.Core\RestMind.Core.csproj" />
+  </ItemGroup>
+
+</Project>

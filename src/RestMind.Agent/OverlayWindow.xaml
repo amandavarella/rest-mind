@@ -1,0 +1,90 @@
+<Window x:Class="RestMind.Agent.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Rest Mind"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        AllowsTransparency="False"
+        Background="#0B1B2B"
+        Foreground="#E8F1F8"
+        FontFamily="Segoe UI"
+        Cursor="None">
+
+    <Grid>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="48">
+            <TextBlock x:Name="HeadlineText"
+                       Text="Time for a break"
+                       FontSize="44"
+                       FontWeight="Light"
+                       HorizontalAlignment="Center"
+                       Opacity="0.85" />
+
+            <TextBlock x:Name="CountdownText"
+                       Text="10:00"
+                       FontSize="180"
+                       FontWeight="Light"
+                       HorizontalAlignment="Center"
+                       Margin="0,12,0,12" />
+
+            <TextBlock x:Name="MessageText"
+                       Text="Look away from the screen and rest your eyes."
+                       FontSize="22"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       MaxWidth="720"
+                       TextWrapping="Wrap"
+                       Opacity="0.7" />
+        </StackPanel>
+
+        <!-- Only the primary overlay offers the unlock affordance, so the child does not see a
+             password prompt on every monitor. -->
+        <StackPanel x:Name="UnlockPanel"
+                    VerticalAlignment="Bottom"
+                    HorizontalAlignment="Center"
+                    Margin="0,0,0,40"
+                    Visibility="Collapsed">
+
+            <Button x:Name="RevealButton"
+                    Content="Parent unlock"
+                    Click="OnRevealClick"
+                    HorizontalAlignment="Center"
+                    Padding="14,6"
+                    FontSize="13"
+                    Cursor="Hand"
+                    Background="#16324A"
+                    Foreground="#9FB8CC"
+                    BorderBrush="#24455F" />
+
+            <StackPanel x:Name="PasswordPanel"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        Margin="0,12,0,0"
+                        Visibility="Collapsed">
+
+                <PasswordBox x:Name="PasswordInput"
+                             Width="240"
+                             FontSize="16"
+                             Padding="8,6"
+                             KeyDown="OnPasswordKeyDown"
+                             Cursor="IBeam" />
+
+                <Button x:Name="UnlockButton"
+                        Content="Unlock"
+                        Click="OnUnlockClick"
+                        Margin="8,0,0,0"
+                        Padding="18,6"
+                        FontSize="14"
+                        Cursor="Hand" />
+            </StackPanel>
+
+            <TextBlock x:Name="UnlockStatusText"
+                       HorizontalAlignment="Center"
+                       Margin="0,10,0,0"
+                       FontSize="13"
+                       Foreground="#F0A0A0"
+                       Visibility="Collapsed" />
+        </StackPanel>
+    </Grid>
+</Window>
