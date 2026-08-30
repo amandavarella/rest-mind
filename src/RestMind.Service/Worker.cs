@@ -27,10 +27,13 @@ public sealed class Worker : BackgroundService
     private readonly PipeServer _pipe;
     private readonly object _schedulerLock = new();
 
-    private SchedulerStatus _status = new(EnforcementState.Inactive, TimeSpan.Zero);
+    // Written by the tick loop, read by pipe threads answering status requests.
+    private volatile SchedulerStatus _status = new(EnforcementState.Inactive, TimeSpan.Zero);
     private EnforcementState _lastPersistedState = EnforcementState.Inactive;
     private DateTimeOffset _lastWatchdogCheck = DateTimeOffset.MinValue;
     private DateTimeOffset _lastCheckpoint = DateTimeOffset.MinValue;
+    private FileSystemWatcher? _configWatcher;
+    private DateTimeOffset _configReloadDueAt = DateTimeOffset.MaxValue;
 
     public Worker(ILogger<Worker> logger)
     {
@@ -56,6 +59,7 @@ public sealed class Worker : BackgroundService
         // If the service died mid-break last time, Task Manager may still be disabled.
         _policy.Revert();
         _pipe.Start();
+        StartConfigWatcher();
 
         try
         {
@@ -75,9 +79,57 @@ public sealed class Worker : BackgroundService
         }
     }
 
+    /// <summary>
+    /// Picks up edits to config.json without the parent needing to run a reload command. This
+    /// also removes a chicken-and-egg problem: after changing the password, reloading would
+    /// otherwise still require the old one.
+    /// </summary>
+    private void StartConfigWatcher()
+    {
+        try
+        {
+            _configWatcher = new FileSystemWatcher(_paths.Root, "config.json")
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
+                EnableRaisingEvents = true,
+            };
+
+            // Saving a file usually raises several events; settle before re-reading.
+            void Schedule(object _, FileSystemEventArgs __) =>
+                _configReloadDueAt = DateTimeOffset.UtcNow.AddSeconds(1);
+
+            _configWatcher.Changed += Schedule;
+            _configWatcher.Created += Schedule;
+            _configWatcher.Renamed += (_, _) => Schedule(this, null!);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not watch config.json for changes");
+        }
+    }
+
+    private void ReloadConfigIfDue(DateTimeOffset now)
+    {
+        if (now < _configReloadDueAt)
+        {
+            return;
+        }
+
+        _configReloadDueAt = DateTimeOffset.MaxValue;
+
+        lock (_schedulerLock)
+        {
+            _scheduler.Config = _configStore.Load();
+        }
+
+        _logger.LogInformation("Reloaded config.json after an on-disk change");
+    }
+
     private async Task TickAsync()
     {
         var now = DateTimeOffset.UtcNow;
+        ReloadConfigIfDue(now);
+
         SchedulerStatus status;
         SchedulerState snapshot;
 
@@ -211,6 +263,8 @@ public sealed class Worker : BackgroundService
     private void Shutdown()
     {
         _logger.LogInformation("RestMind service stopping");
+
+        _configWatcher?.Dispose();
 
         // Never leave Task Manager disabled because the service went away.
         _policy.Revert();
