@@ -88,7 +88,6 @@ change within a second or two and applies it; no restart or reload command neede
 ```json
 {
   "version": 1,
-  "preBreakWarningMinutes": 2,
   "schedule": {
     "days": [
       {
@@ -100,9 +99,13 @@ change within a second or two and applies it; no restart or reload command neede
         "breakMinutes": 10
       }
     ]
-  }
+  },
+  "preBreakWarningMinutes": 2,
+  "passwordHash": "210000.<salt>.<hash>"
 }
 ```
+
+Leave `passwordHash` alone; change it with `RestMind.Ctl set-password` rather than by hand.
 
 Each day of the week gets its own entry. Outside `activeStart`–`activeEnd` nothing is enforced,
 and `"enabled": false` turns a day off entirely. If `activeEnd` is earlier than `activeStart` the
