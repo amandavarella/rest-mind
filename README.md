@@ -37,9 +37,8 @@ boots.
 
 The quickest path is the prebuilt release, which needs nothing installed on the target machine:
 
-1. Download
-   [`RestMind-win-x64-v1.0.0.zip`](https://github.com/amandavarella/rest-mind/releases/latest)
-   and extract it.
+1. Download the `RestMind-win-x64` zip from the
+   [latest release](https://github.com/amandavarella/rest-mind/releases/latest) and extract it.
 2. Open PowerShell **as Administrator** and `cd` into the extracted `RestMind` folder.
 3. Run `powershell -ExecutionPolicy Bypass -File .\install.ps1`.
 
