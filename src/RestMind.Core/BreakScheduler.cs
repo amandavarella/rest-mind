@@ -50,9 +50,21 @@ public sealed class BreakScheduler
             State.PausedUntilUtc = null;
         }
 
-        // A break that has started always runs to completion, even if the active-hours window
-        // closes underneath it. Otherwise working right up to the edge of the window would be
-        // a way to skip the break entirely.
+        var localNow = _clock.ToLocal(nowUtc);
+        var localTime = TimeOnly.FromDateTime(localNow.DateTime);
+
+        // School outranks a break in progress, unlike the active-hours window below. A break
+        // that started at 08:25 must not still be covering the screen once a lesson begins, so
+        // the school day cancels it outright rather than letting it run to completion.
+        if (SchoolHours.Contains(localNow.DayOfWeek, localTime))
+        {
+            BeginWorkPeriod();
+            return new SchedulerStatus(EnforcementState.Inactive, TimeSpan.Zero);
+        }
+
+        // Outside school, a break that has started always runs to completion, even if the
+        // active-hours window closes underneath it. Otherwise working right up to the edge of
+        // the window would be a way to skip the break entirely.
         if (State.Phase == CyclePhase.OnBreak)
         {
             if (State.BreakEndsAtUtc is { } breakEnds && nowUtc < breakEnds)
@@ -63,8 +75,8 @@ public sealed class BreakScheduler
             BeginWorkPeriod();
         }
 
-        var day = DayScheduleFor(nowUtc);
-        if (day is null || !day.IsWithinActiveHours(LocalTimeOf(nowUtc)))
+        var day = Config.Schedule.ForDay(localNow.DayOfWeek);
+        if (day is null || !day.IsWithinActiveHours(localTime))
         {
             // Entering the active window should always start with a full work period.
             State.WorkAccruedSeconds = 0;
@@ -154,7 +166,4 @@ public sealed class BreakScheduler
 
     private DaySchedule? DayScheduleFor(DateTimeOffset nowUtc) =>
         Config.Schedule.ForDay(_clock.ToLocal(nowUtc).DayOfWeek);
-
-    private TimeOnly LocalTimeOf(DateTimeOffset nowUtc) =>
-        TimeOnly.FromDateTime(_clock.ToLocal(nowUtc).DateTime);
 }

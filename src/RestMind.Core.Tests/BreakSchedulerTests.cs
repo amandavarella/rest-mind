@@ -5,15 +5,16 @@ namespace RestMind.Core.Tests;
 
 public class BreakSchedulerTests
 {
-    // A Monday, so day-of-week lookups are unambiguous.
-    private static readonly DateTimeOffset Monday9Am = new(2026, 1, 5, 9, 0, 0, TimeSpan.Zero);
+    // A Monday afternoon, after school lets out. These tests exercise the cycle itself; the
+    // school-hours exclusion has its own suite in SchoolHoursTests.
+    private static readonly DateTimeOffset MondayAfterSchool = new(2026, 1, 5, 16, 0, 0, TimeSpan.Zero);
 
     private static (BreakScheduler Scheduler, TestClock Clock) Create(
         AppConfig? config = null,
         SchedulerState? state = null,
         DateTimeOffset? start = null)
     {
-        var clock = new TestClock(start ?? Monday9Am);
+        var clock = new TestClock(start ?? MondayAfterSchool);
         var scheduler = new BreakScheduler(config ?? SchedulerHarness.Config(), state, clock);
         return (scheduler, clock);
     }
@@ -98,9 +99,11 @@ public class BreakSchedulerTests
             day.ActiveEnd = new TimeOnly(20, 0);
         }
 
-        var (scheduler, clock) = Create(config);
+        // 07:00 is before both the active window and the school day, so this isolates the
+        // active-hours rule from the school-hours rule.
+        var (scheduler, clock) = Create(config, start: new DateTimeOffset(2026, 1, 5, 7, 0, 0, TimeSpan.Zero));
 
-        var status = scheduler.Tick(clock.UtcNow); // 09:00, before the window
+        var status = scheduler.Tick(clock.UtcNow);
         Assert.Equal(EnforcementState.Inactive, status.State);
         Assert.Equal(TimeSpan.Zero, status.Remaining);
     }
@@ -137,13 +140,14 @@ public class BreakSchedulerTests
             day.ActiveEnd = new TimeOnly(2, 0);
         }
 
-        var (evening, eveningClock) = Create(config, start: new DateTimeOffset(2026, 1, 5, 21, 0, 0, TimeSpan.Zero));
+        // Saturday into Sunday, so no school day overlaps and the wrap is what is under test.
+        var (evening, eveningClock) = Create(config, start: new DateTimeOffset(2026, 1, 10, 21, 0, 0, TimeSpan.Zero));
         Assert.Equal(EnforcementState.Working, evening.Tick(eveningClock.UtcNow).State);
 
-        var (afterMidnight, midnightClock) = Create(config, start: new DateTimeOffset(2026, 1, 6, 1, 0, 0, TimeSpan.Zero));
+        var (afterMidnight, midnightClock) = Create(config, start: new DateTimeOffset(2026, 1, 11, 1, 0, 0, TimeSpan.Zero));
         Assert.Equal(EnforcementState.Working, afterMidnight.Tick(midnightClock.UtcNow).State);
 
-        var (daytime, dayClock) = Create(config, start: new DateTimeOffset(2026, 1, 6, 10, 0, 0, TimeSpan.Zero));
+        var (daytime, dayClock) = Create(config, start: new DateTimeOffset(2026, 1, 11, 10, 0, 0, TimeSpan.Zero));
         Assert.Equal(EnforcementState.Inactive, daytime.Tick(dayClock.UtcNow).State);
     }
 
@@ -153,19 +157,19 @@ public class BreakSchedulerTests
         var config = SchedulerHarness.Config();
         foreach (var day in config.Schedule.Days)
         {
-            day.ActiveStart = new TimeOnly(9, 0);
-            day.ActiveEnd = new TimeOnly(9, 30);
+            day.ActiveStart = new TimeOnly(16, 0);
+            day.ActiveEnd = new TimeOnly(16, 30);
         }
 
         var (scheduler, clock) = Create(config);
 
         // Work 20 of the 50 minutes, then fall out of the active window.
         SchedulerHarness.Run(scheduler, clock, TimeSpan.FromMinutes(20));
-        clock.UtcNow = new DateTimeOffset(2026, 1, 5, 12, 0, 0, TimeSpan.Zero);
+        clock.UtcNow = new DateTimeOffset(2026, 1, 5, 18, 0, 0, TimeSpan.Zero);
         Assert.Equal(EnforcementState.Inactive, scheduler.Tick(clock.UtcNow).State);
 
         // Next day's window opens with a full work period, not the leftover 30 minutes.
-        clock.UtcNow = new DateTimeOffset(2026, 1, 6, 9, 0, 0, TimeSpan.Zero);
+        clock.UtcNow = new DateTimeOffset(2026, 1, 6, 16, 0, 0, TimeSpan.Zero);
         var status = scheduler.Tick(clock.UtcNow);
 
         Assert.Equal(EnforcementState.Working, status.State);
@@ -203,7 +207,7 @@ public class BreakSchedulerTests
     [Fact]
     public void BreakInProgress_SurvivesAReboot_WithTheRemainingTimeIntact()
     {
-        var breakEnds = Monday9Am.AddMinutes(10);
+        var breakEnds = MondayAfterSchool.AddMinutes(10);
         var persisted = new SchedulerState
         {
             Phase = CyclePhase.OnBreak,
@@ -212,7 +216,7 @@ public class BreakSchedulerTests
         };
 
         var (scheduler, clock) = Create(state: persisted);
-        clock.UtcNow = Monday9Am.AddMinutes(4);
+        clock.UtcNow = MondayAfterSchool.AddMinutes(4);
 
         var status = scheduler.Tick(clock.UtcNow);
 
@@ -226,11 +230,11 @@ public class BreakSchedulerTests
         var persisted = new SchedulerState
         {
             Phase = CyclePhase.OnBreak,
-            BreakEndsAtUtc = Monday9Am.AddMinutes(10),
+            BreakEndsAtUtc = MondayAfterSchool.AddMinutes(10),
         };
 
         var (scheduler, clock) = Create(state: persisted);
-        clock.UtcNow = Monday9Am.AddMinutes(30);
+        clock.UtcNow = MondayAfterSchool.AddMinutes(30);
 
         var status = scheduler.Tick(clock.UtcNow);
 
@@ -254,16 +258,16 @@ public class BreakSchedulerTests
         var config = SchedulerHarness.Config();
         foreach (var day in config.Schedule.Days)
         {
-            day.ActiveStart = new TimeOnly(9, 0);
-            day.ActiveEnd = new TimeOnly(10, 0);
+            day.ActiveStart = new TimeOnly(16, 0);
+            day.ActiveEnd = new TimeOnly(17, 0);
         }
 
         var (scheduler, clock) = Create(config);
-        clock.UtcNow = new DateTimeOffset(2026, 1, 5, 9, 55, 0, TimeSpan.Zero);
+        clock.UtcNow = new DateTimeOffset(2026, 1, 5, 16, 55, 0, TimeSpan.Zero);
         scheduler.StartBreakEarly(clock.UtcNow);
 
-        // 10:02 is outside the window, but the break still has three minutes to run.
-        clock.UtcNow = new DateTimeOffset(2026, 1, 5, 10, 2, 0, TimeSpan.Zero);
+        // 17:02 is outside the window, but the break still has three minutes to run.
+        clock.UtcNow = new DateTimeOffset(2026, 1, 5, 17, 2, 0, TimeSpan.Zero);
         var status = scheduler.Tick(clock.UtcNow);
 
         Assert.Equal(EnforcementState.OnBreak, status.State);
