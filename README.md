@@ -35,7 +35,15 @@ boots.
 
 ## Installing on the Windows machine
 
-Build on the Mac:
+The quickest path is the prebuilt release, which needs nothing installed on the target machine:
+
+1. Download
+   [`RestMind-win-x64-v1.0.0.zip`](https://github.com/amandavarella/rest-mind/releases/latest)
+   and extract it.
+2. Open PowerShell **as Administrator** and `cd` into the extracted `RestMind` folder.
+3. Run `powershell -ExecutionPolicy Bypass -File .\install.ps1`.
+
+To build it yourself instead, on the Mac:
 
 ```bash
 ./scripts/publish.sh
