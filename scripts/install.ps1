@@ -15,7 +15,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$SourcePath = (Join-Path $PSScriptRoot 'publish'),
+    [string]$SourcePath,
     [string]$InstallPath = 'C:\Program Files\RestMind',
     [string]$DataPath = 'C:\ProgramData\RestMind'
 )
@@ -23,6 +23,19 @@ param(
 $ErrorActionPreference = 'Stop'
 $ServiceName = 'RestMind'
 $RunKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'
+
+# $PSScriptRoot is still empty while param() defaults are evaluated under Windows PowerShell
+# 5.1, which failed with "Cannot bind argument to parameter 'Path' because it is an empty
+# string" before the script could run at all. Resolve it here, where it is populated.
+$scriptDirectory = if ($PSScriptRoot) {
+    $PSScriptRoot
+} else {
+    Split-Path -Parent $MyInvocation.MyCommand.Path
+}
+
+if (-not $SourcePath) {
+    $SourcePath = Join-Path $scriptDirectory 'publish'
+}
 
 function Assert-Administrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -68,7 +81,21 @@ New-Item -ItemType Directory -Path (Join-Path $DataPath 'logs') -Force | Out-Nul
 
 # /inheritance:r drops inherited user-writable rights; without it a standard user could edit
 # config.json and simply turn enforcement off.
-icacls $DataPath /inheritance:r /grant:r 'SYSTEM:(OI)(CI)F' 'Administrators:(OI)(CI)F' 'Users:(OI)(CI)RX' /T /Q | Out-Null
+#
+# Well-known SIDs rather than group names, because the names are localised: on a Portuguese
+# install these are SISTEMA, Administradores and Usuarios, and icacls would fail with "No
+# mapping between account names and security IDs was done".
+#   *S-1-5-18     SYSTEM
+#   *S-1-5-32-544 Administrators
+#   *S-1-5-32-545 Users
+icacls $DataPath /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-32-545:(OI)(CI)RX' /T /Q | Out-Null
+
+# icacls is a native command, so a failure here does not trip $ErrorActionPreference. Check it
+# explicitly: these permissions are what stop the config file being edited, and silently
+# carrying on without them would leave enforcement trivially switchable off.
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to lock down $DataPath (icacls exited with $LASTEXITCODE). Enforcement would be editable by a standard user, so stopping here."
+}
 
 # --- Parent password -------------------------------------------------------------------------
 $configFile = Join-Path $DataPath 'config.json'
