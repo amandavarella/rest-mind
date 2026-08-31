@@ -9,12 +9,24 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$SourcePath = (Join-Path $PSScriptRoot 'publish'),
+    [string]$SourcePath,
     [string]$InstallPath = 'C:\Program Files\RestMind'
 )
 
 $ErrorActionPreference = 'Stop'
 $ServiceName = 'RestMind'
+
+# See install.ps1: $PSScriptRoot is empty while param() defaults are evaluated under Windows
+# PowerShell 5.1, so the default has to be resolved in the body.
+$scriptDirectory = if ($PSScriptRoot) {
+    $PSScriptRoot
+} else {
+    Split-Path -Parent $MyInvocation.MyCommand.Path
+}
+
+if (-not $SourcePath) {
+    $SourcePath = Join-Path $scriptDirectory 'publish'
+}
 
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = New-Object Security.Principal.WindowsPrincipal($identity)
