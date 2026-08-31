@@ -123,6 +123,24 @@ the window closes underneath it, so working right up to the edge is not a way to
 `preBreakWarningMinutes` controls the tray balloon that warns her to save her work; set it to `0`
 to turn the warning off.
 
+### School hours
+
+Breaks never happen during the school day, **Monday to Friday between 08:30 and 15:10**. Within
+those hours the machine behaves as though Rest Mind were not installed, so a break can't cover
+the screen during a lesson.
+
+This sits on top of the active window rather than replacing it. On a weekday the default 07:00
+to 21:00 window therefore enforces breaks from 07:00 to 08:30 and again from 15:10 to 21:00; at
+weekends the whole window is enforced.
+
+Two details worth knowing. A break already running when the school day starts is **cancelled**,
+not paused, unlike the active-window boundary where a break runs to completion. And the school
+day doesn't eat into a work period: the afternoon always starts from a full 50 minutes rather
+than resuming whatever was left over at 08:30.
+
+These times are currently fixed in code, in `src/RestMind.Core/SchoolHours.cs`, rather than being
+part of `config.json`.
+
 ## Repository layout
 
 | Project | What it is |
